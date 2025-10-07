@@ -3,7 +3,7 @@ import * as am5 from "@amcharts/amcharts5";
 import * as am5map from "@amcharts/amcharts5/map";
 import am5geodata_worldLow from "@amcharts/amcharts5-geodata/worldLow";
 
-const WorldMap = () => {
+const WorldMap = ({ currentCity, onCityClick }) => {
   const chartRef = useRef(null);
 
   useLayoutEffect(() => {
@@ -17,9 +17,8 @@ const WorldMap = () => {
     let chart = root.container.children.push(
       am5map.MapChart.new(root, {
         projection: am5map.geoMercator(),
-        wheelY: "none", // disable zoom on scroll
-        panX: "none",
-        panY: "none",
+        paddingTop: 0,
+        paddingBottom: 0,
       })
     );
 
@@ -27,24 +26,53 @@ const WorldMap = () => {
     let polygonSeries = chart.series.push(
       am5map.MapPolygonSeries.new(root, {
         geoJSON: am5geodata_worldLow,
-        exclude: ["AQ"], // hide Antarctica
+        exclude: ["AQ"],
       })
     );
 
     polygonSeries.mapPolygons.template.setAll({
       tooltipText: "{name}",
       interactive: true,
-      fill: am5.color(0x4b5563), // Tailwind gray-700
-      stroke: am5.color(0xffffff),
+      fill: am5.color(0x374151),
+      stroke: am5.color(0x4b5563),
+      strokeWidth: 0.5,
     });
 
     polygonSeries.mapPolygons.template.states.create("hover", {
-      fill: am5.color(0x22c55e), // Tailwind green-500
+      fill: am5.color(0x22c55e),
+    });
+
+    // Add click event
+    polygonSeries.mapPolygons.template.events.on("click", (ev) => {
+      const data = ev.target.dataItem?.dataContext;
+      if (data && data.name) {
+        onCityClick(data.name);
+      }
+    });
+
+    // Point series for current city
+    let pointSeries = chart.series.push(am5map.MapPointSeries.new(root, {}));
+
+    pointSeries.bullets.push(() => {
+      let circle = am5.Circle.new(root, {
+        radius: 8,
+        fill: am5.color(0x3b82f6),
+        stroke: am5.color(0xffffff),
+        strokeWidth: 2,
+        tooltipText: `Current: {name}`,
+      });
+
+      return am5.Bullet.new(root, {
+        sprite: circle,
+      });
+    });
+
+    pointSeries.data.push({
+      name: currentCity,
     });
 
     chart.appear(1000, 100);
 
-    // 🔑 Handle container resize so map always fills grid cell
     const resizeObserver = new ResizeObserver(() => {
       root.resize();
     });
@@ -54,14 +82,17 @@ const WorldMap = () => {
       resizeObserver.disconnect();
       root.dispose();
     };
-  }, []);
+  }, [currentCity, onCityClick]);
 
   return (
-    <div
-      ref={chartRef}
-      className="w-full h-full rounded-xl"
-      style={{ minHeight: 0 }}
-    />
+    <div className="w-full h-full flex flex-col p-3">
+      <h2 className="text-white text-lg font-bold mb-2">World Map</h2>
+      <div
+        ref={chartRef}
+        className="w-full h-full rounded-xl bg-gray-700/30"
+        style={{ minHeight: 0 }}
+      />
+    </div>
   );
 };
 
